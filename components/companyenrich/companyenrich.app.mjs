@@ -26,7 +26,7 @@ export default {
     maxResults: {
       type: "integer",
       label: "Max Results",
-      description: "Maximum companies to retrieve across pages. Each returned company consumes credits.",
+      description: "Maximum companies to retrieve (default 10, one page). Larger limits request more pages and spend additional credits; each request has a minimum credit charge.",
       default: 10,
       min: 1,
       max: 10000,
