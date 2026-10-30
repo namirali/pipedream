@@ -1,0 +1,18 @@
+{
+  "name": "@pipedream/companyenrich",
+  "version": "0.0.1",
+  "description": "Pipedream CompanyEnrich Components",
+  "main": "companyenrich.app.mjs",
+  "keywords": [
+    "pipedream",
+    "companyenrich"
+  ],
+  "homepage": "https://pipedream.com/apps/companyenrich",
+  "author": "Pipedream <support@pipedream.com> (https://pipedream.com/)",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@pipedream/platform": "^3.1.1"
+  }
+}
