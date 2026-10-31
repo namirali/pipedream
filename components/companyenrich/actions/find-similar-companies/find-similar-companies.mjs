@@ -1,11 +1,11 @@
-import { ConfigurationError } from "@pipedream/platform";
 import app from "../../companyenrich.app.mjs";
+import { mergeDefined } from "../../common/dispatcher.mjs";
 
 export default {
   key: "companyenrich-find-similar-companies",
   name: "Find Similar Companies",
-  description: "Discover lookalike companies using one to ten seed domains. Costs 5 credits per returned company, with a 5-credit minimum per request. [See the documentation](https://docs.companyenrich.com/reference/post_companies-similar)",
-  version: "0.0.1",
+  description: "Find Similar Companies with CompanyEnrich. Data requests can consume credits. [See the documentation](https://docs.companyenrich.com/reference/post_companies-similar)",
+  version: "0.0.2",
   type: "action",
   ai: "optimized",
   annotations: {
@@ -15,44 +15,65 @@ export default {
   },
   props: {
     app,
-    domains: {
-      type: "string[]",
-      label: "Seed Domains",
-      description: "One to ten company domains to find lookalikes for, for example `example.com`.",
+    "domains": {
+      "type": "string[]",
+      "label": "Domains",
+      "description": "Seed domains (1\u201310) for lookalikes, or 1\u201350 domains for batch enrichment.",
     },
-    countries: {
-      propDefinition: [
+    "countries": {
+      "propDefinition": [
         app,
         "countries",
       ],
     },
-    keywords: {
-      propDefinition: [
+    "keywords": {
+      "propDefinition": [
         app,
         "keywords",
       ],
     },
-    maxResults: {
-      propDefinition: [
+    "filters": {
+      "type": "object",
+      "label": "Filters",
+      "description": "Documented API body fields, including nested filters. Explicit action inputs take precedence. See the API reference.",
+      "optional": true,
+    },
+    "expand": {
+      "type": "string[]",
+      "label": "Expand",
+      "description": "Optional workforce (company operations) or education (people operations) expansion. Workforce expansion can spend extra credits.",
+      "optional": true,
+    },
+    "waitForEnrichment": {
+      "type": "boolean",
+      "label": "Wait for Enrichment",
+      "description": "Wait for enrichment where supported by the selected endpoint.",
+      "optional": true,
+    },
+    "maxResults": {
+      "propDefinition": [
         app,
         "maxResults",
       ],
     },
+
   },
   async run({ $ }) {
-    if (!this.domains?.length || this.domains.length > 10) {
-      throw new ConfigurationError("Provide between one and ten seed domains.");
-    }
-    const companies = await this.app.findSimilarCompanies({
+    const result = await this.app.listCompanies({
       $,
-      data: {
+      operation: "post_companies_similar",
+      data: mergeDefined(this.filters, {
         domains: this.domains,
         countries: this.countries,
         keywords: this.keywords,
-      },
+      }),
+      query: mergeDefined({}, {
+        expand: this.expand,
+        waitForEnrichment: this.waitForEnrichment,
+      }),
       maxResults: this.maxResults,
     });
-    $.export("$summary", `Found ${companies.length} similar companies`);
-    return companies;
+    $.export("$summary", `Found ${result.length} companies`);
+    return result;
   },
 };

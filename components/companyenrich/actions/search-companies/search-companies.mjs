@@ -1,10 +1,11 @@
 import app from "../../companyenrich.app.mjs";
+import { mergeDefined } from "../../common/dispatcher.mjs";
 
 export default {
   key: "companyenrich-search-companies",
   name: "Search Companies",
-  description: "Find companies by name, domain, countries, or keywords. Costs 1 credit per company returned, with a 1-credit minimum per request. [See the documentation](https://docs.companyenrich.com/reference/post_companies-search)",
-  version: "0.0.1",
+  description: "Search Companies with CompanyEnrich. Data requests can consume credits. [See the documentation](https://docs.companyenrich.com/reference/post_companies-search)",
+  version: "0.0.2",
   type: "action",
   ai: "optimized",
   annotations: {
@@ -14,42 +15,66 @@ export default {
   },
   props: {
     app,
-    query: {
-      type: "string",
-      label: "Query",
-      description: "Search company names and domains, for example `Acme`.",
-      optional: true,
+    "query": {
+      "type": "string",
+      "label": "Query",
+      "description": "Literal company name/domain query (up to 250 characters).",
+      "optional": true,
     },
-    countries: {
-      propDefinition: [
+    "semanticQuery": {
+      "type": "string",
+      "label": "Semantic Query",
+      "description": "Natural-language company description (up to 500 characters).",
+      "optional": true,
+    },
+    "countries": {
+      "propDefinition": [
         app,
         "countries",
       ],
     },
-    keywords: {
-      propDefinition: [
+    "keywords": {
+      "propDefinition": [
         app,
         "keywords",
       ],
     },
-    maxResults: {
-      propDefinition: [
+    "filters": {
+      "type": "object",
+      "label": "Filters",
+      "description": "Documented API body fields, including nested filters. Explicit action inputs take precedence. See the API reference.",
+      "optional": true,
+    },
+    "expand": {
+      "type": "string[]",
+      "label": "Expand",
+      "description": "Optional workforce (company operations) or education (people operations) expansion. Workforce expansion can spend extra credits.",
+      "optional": true,
+    },
+    "maxResults": {
+      "propDefinition": [
         app,
         "maxResults",
       ],
     },
+
   },
   async run({ $ }) {
-    const companies = await this.app.searchCompanies({
+    const result = await this.app.listCompanies({
       $,
-      data: {
+      operation: "post_companies_search",
+      data: mergeDefined(this.filters, {
         query: this.query,
+        semanticQuery: this.semanticQuery,
         countries: this.countries,
         keywords: this.keywords,
-      },
+      }),
+      query: mergeDefined({}, {
+        expand: this.expand,
+      }),
       maxResults: this.maxResults,
     });
-    $.export("$summary", `Found ${companies.length} companies`);
-    return companies;
+    $.export("$summary", `Found ${result.length} companies`);
+    return result;
   },
 };

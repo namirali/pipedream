@@ -1,6 +1,5 @@
-import {
-  axios, ConfigurationError,
-} from "@pipedream/platform";
+import { ConfigurationError } from "@pipedream/platform";
+import { prepareOperation } from "./common/dispatcher.mjs";
 
 export default {
   type: "app",
@@ -34,70 +33,69 @@ export default {
     },
   },
   methods: {
-    _makeRequest({
-      $, path, ...options
-    }) {
-      return axios($, {
-        ...options,
-        url: `https://api.companyenrich.com${path}`,
-        headers: {
-          "Authorization": `Bearer ${this.$auth.api_key}`,
-          "Content-Type": "application/json",
-        },
-      });
-    },
-    enrichCompany({
-      $, domain,
-    }) {
-      return this._makeRequest({
-        $,
-        path: "/companies/enrich",
-        params: {
-          domain,
-        },
-      });
+    async request(input) {
+      const request = prepareOperation(input);
+      const key = this.$auth.api_key;
+      if (typeof key !== "string" || !key.trim()) {
+        throw new ConfigurationError("A CompanyEnrich API key is required.");
+      }
+      let response;
+      try {
+        response = await fetch(request.url, {
+          method: request.method,
+          headers: {
+            "Authorization": `Bearer ${key}`,
+            "Content-Type": "application/json",
+          },
+          body: request.body,
+          signal: AbortSignal.timeout(30000),
+          redirect: "error",
+        });
+      } catch {
+        throw new Error("CompanyEnrich request failed or timed out. No retry was attempted.");
+      }
+      if (!response.ok) {
+        throw new Error(`CompanyEnrich request failed (HTTP ${response.status}).`);
+      }
+      try {
+        return await response.json();
+      } catch {
+        throw new Error("CompanyEnrich returned invalid JSON. No retry was attempted.");
+      }
     },
     async listCompanies({
-      $, path, data, maxResults = 10,
+      $, operation, data, query, maxResults = 10,
     }) {
       if (!Number.isInteger(maxResults) || maxResults < 1 || maxResults > 10000) {
         throw new ConfigurationError("Max Results must be an integer between 1 and 10000.");
       }
+      if (data.page !== undefined || data.pageSize !== undefined) {
+        throw new ConfigurationError("Use Max Results to control these actions; use Advanced Request for an explicit page/pageSize.");
+      }
       const companies = [];
+      const pages = [];
       while (companies.length < maxResults) {
         let pageSize = Math.min(maxResults - companies.length, 100);
-        while (companies.length % pageSize !== 0) {
-          pageSize--;
-        }
+        while (companies.length % pageSize !== 0) pageSize--;
         const page = companies.length / pageSize + 1;
-        const response = await this._makeRequest({
-          $,
-          path,
-          method: "POST",
-          data: {
+        const response = await this.request({
+          operation,
+          body: {
             ...data,
             page,
             pageSize,
           },
+          query,
         });
-        companies.push(...response.items.slice(0, maxResults - companies.length));
-        if (page >= response.totalPages || response.items.length < pageSize) {
-          break;
+        if (!response || !Array.isArray(response.items)) {
+          throw new Error("CompanyEnrich returned an invalid company page. No retry was attempted.");
         }
+        pages.push(response);
+        companies.push(...response.items.slice(0, maxResults - companies.length));
+        if (page >= response.totalPages || response.items.length < pageSize) break;
       }
+      $.export("pages", pages);
       return companies;
-    },
-    searchCompanies(options) {
-      return this.listCompanies({
-        ...options,
-        path: "/companies/search",
-      });
-    },
-    findSimilarCompanies(options) {
-      return this.listCompanies({
-        ...options,
-        path: "/companies/similar",
-      });
     },
   },
 };
