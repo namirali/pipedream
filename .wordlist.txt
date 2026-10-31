@@ -131,6 +131,7 @@ Coinranking
 commercetools
 CommonJS
 CompanyCam
+CompanyEnrich
 config
 const
 Contactually

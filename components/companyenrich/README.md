@@ -9,7 +9,7 @@ The search actions return an array of company records. Similar-company match-sco
 Run the mocked request tests on Node.js 22 or later:
 
 ```sh
-node --experimental-test-module-mocks --test components/companyenrich/companyenrich.test.mjs
+node --experimental-test-module-mocks --test components/companyenrich/common-companyenrich.test.mjs
 ```
 
 These tests do not call CompanyEnrich. Authenticated Pipedream execution remains to be verified after app registration.
